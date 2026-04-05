@@ -1,98 +1,118 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
-
-import { HelloWave } from '@/components/hello-wave';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Link } from 'expo-router';
+import { useState, useCallback } from 'react';
+import { View, Text, FlatList, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import { useFocusEffect } from 'expo-router';
+import { haeTreenit, poistaTreeni } from '../../database/db';
 
 export default function HomeScreen() {
-  return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert('Action pressed')} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
+  const [treenit, setTreeenit] = useState([]);
 
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+  const lataaTreenit = useCallback(() => {
+    const data = haeTreenit();
+    setTreeenit(data);
+  }, []);
+
+  useFocusEffect(lataaTreenit);
+
+  function poista(id) {
+    Alert.alert('Poista treeni', 'Haluatko varmasti poistaa tämän treenin?', [
+      { text: 'Peruuta', style: 'cancel' },
+      {
+        text: 'Poista',
+        style: 'destructive',
+        onPress: () => {
+          poistaTreeni(id);
+          lataaTreenit();
+        },
+      },
+    ]);
+  }
+
+  function renderTreeni({ item }) {
+    return (
+      <View style={styles.kortti}>
+        <View style={styles.korttiSisalto}>
+          <Text style={styles.laji}>{item.laji}</Text>
+          <Text style={styles.tieto}>📅 {item.paivamaara}</Text>
+          <Text style={styles.tieto}>⏱ {item.kesto} min</Text>
+          {item.muistiinpanot ? (
+            <Text style={styles.muistiinpanot}>📝 {item.muistiinpanot}</Text>
+          ) : null}
+        </View>
+        <TouchableOpacity style={styles.poistaNappi} onPress={() => poista(item.id)}>
+          <Text style={styles.poistaTeksti}>🗑</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.container}>
+      {treenit.length === 0 ? (
+        <View style={styles.tyhja}>
+          <Text style={styles.tyhjaTeksti}>Ei treenejä vielä.</Text>
+          <Text style={styles.tyhjaTeksti}>Lisää ensimmäinen treeni! 💪</Text>
+        </View>
+      ) : (
+        <FlatList
+          data={treenit}
+          keyExtractor={(item) => item.id.toString()}
+          renderItem={renderTreeni}
+          contentContainerStyle={{ padding: 15 }}
+        />
+      )}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
+  container: {
+    flex: 1,
+    backgroundColor: '#f5f5f5',
+  },
+  kortti: {
+    backgroundColor: '#fff',
+    borderRadius: 10,
+    padding: 15,
+    marginBottom: 10,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
   },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
+  korttiSisalto: {
+    flex: 1,
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
+  laji: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 5,
+  },
+  tieto: {
+    fontSize: 14,
+    color: '#555',
+    marginBottom: 2,
+  },
+  muistiinpanot: {
+    fontSize: 14,
+    color: '#888',
+    marginTop: 5,
+  },
+  poistaNappi: {
+    padding: 8,
+  },
+  poistaTeksti: {
+    fontSize: 22,
+  },
+  tyhja: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  tyhjaTeksti: {
+    fontSize: 16,
+    color: '#888',
+    marginBottom: 5,
   },
 });
