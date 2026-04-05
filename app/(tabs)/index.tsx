@@ -1,10 +1,12 @@
-import { useState, useCallback } from 'react';
-import { View, Text, FlatList, TouchableOpacity, StyleSheet, Alert } from 'react-native';
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { useCallback, useState } from 'react';
+import { Alert, FlatList, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { haeTreenit, poistaTreeni } from '../../database/db';
 
 export default function HomeScreen() {
   const [treenit, setTreeenit] = useState([]);
+  const [haku, setHaku] = useState('');
+  const router = useRouter();
 
   const lataaTreenit = useCallback(() => {
     const data = haeTreenit();
@@ -12,6 +14,10 @@ export default function HomeScreen() {
   }, []);
 
   useFocusEffect(lataaTreenit);
+
+  const suodatetut = treenit.filter((t) =>
+    t.laji.toLowerCase().includes(haku.toLowerCase())
+  );
 
   function poista(id) {
     Alert.alert('Poista treeni', 'Haluatko varmasti poistaa tämän treenin?', [
@@ -38,6 +44,20 @@ export default function HomeScreen() {
             <Text style={styles.muistiinpanot}>📝 {item.muistiinpanot}</Text>
           ) : null}
         </View>
+        <TouchableOpacity
+          style={styles.muokkausNappi}
+          onPress={() => router.push({
+            pathname: '/(tabs)/edit',
+            params: {
+              id: item.id,
+              laji: item.laji,
+              paivamaara: item.paivamaara,
+              kesto: item.kesto,
+              muistiinpanot: item.muistiinpanot || '',
+            }
+          })}>
+          <Text style={styles.muokkausTeksti}>✏️</Text>
+        </TouchableOpacity>
         <TouchableOpacity style={styles.poistaNappi} onPress={() => poista(item.id)}>
           <Text style={styles.poistaTeksti}>🗑</Text>
         </TouchableOpacity>
@@ -47,14 +67,23 @@ export default function HomeScreen() {
 
   return (
     <View style={styles.container}>
-      {treenit.length === 0 ? (
+      <TextInput
+        style={styles.hakukentta}
+        placeholder="🔍 Hae lajiittain..."
+        value={haku}
+        onChangeText={setHaku}
+      />
+
+      {suodatetut.length === 0 ? (
         <View style={styles.tyhja}>
-          <Text style={styles.tyhjaTeksti}>Ei treenejä vielä.</Text>
-          <Text style={styles.tyhjaTeksti}>Lisää ensimmäinen treeni! 💪</Text>
+          <Text style={styles.tyhjaTeksti}>
+            {haku ? 'Ei tuloksia haulle: ' + haku : 'Ei treenejä vielä.'}
+          </Text>
+          {!haku && <Text style={styles.tyhjaTeksti}>Lisää ensimmäinen treeni! 💪</Text>}
         </View>
       ) : (
         <FlatList
-          data={treenit}
+          data={suodatetut}
           keyExtractor={(item) => item.id.toString()}
           renderItem={renderTreeni}
           contentContainerStyle={{ padding: 15 }}
@@ -68,6 +97,17 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f5f5f5',
+  },
+  hakukentta: {
+    backgroundColor: '#fff',
+    margin: 15,
+    marginTop: 50,
+    marginBottom: 5,
+    padding: 12,
+    borderRadius: 10,
+    fontSize: 16,
+    borderWidth: 1,
+    borderColor: '#ddd',
   },
   kortti: {
     backgroundColor: '#fff',
@@ -98,6 +138,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#888',
     marginTop: 5,
+  },
+  muokkausNappi: {
+    padding: 8,
+  },
+  muokkausTeksti: {
+    fontSize: 22,
   },
   poistaNappi: {
     padding: 8,

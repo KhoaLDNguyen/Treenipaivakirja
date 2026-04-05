@@ -1,14 +1,18 @@
 import { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ScrollView, Platform } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { lisaaTreeni } from '../../database/db';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { muokkaaTreeni } from '../../database/db';
 
-export default function AddScreen() {
-  const [laji, setLaji] = useState('');
-  const [paivamaara, setPaivamaara] = useState(new Date());
+export default function EditScreen() {
+  const router = useRouter();
+  const params = useLocalSearchParams();
+
+  const [laji, setLaji] = useState(params.laji || '');
+  const [paivamaara, setPaivamaara] = useState(new Date(params.paivamaara || Date.now()));
   const [naytaPicker, setNaytaPicker] = useState(false);
-  const [kesto, setKesto] = useState('');
-  const [muistiinpanot, setMuistiinpanot] = useState('');
+  const [kesto, setKesto] = useState(params.kesto || '');
+  const [muistiinpanot, setMuistiinpanot] = useState(params.muistiinpanot || '');
 
   function formatPaivamaara(date) {
     const y = date.getFullYear();
@@ -22,12 +26,16 @@ export default function AddScreen() {
       Alert.alert('Virhe', 'Täytä kaikki pakolliset kentät!');
       return;
     }
-    lisaaTreeni(laji, formatPaivamaara(paivamaara), parseInt(kesto), muistiinpanot);
-    Alert.alert('Valmis', 'Treeni tallennettu!');
-    setLaji('');
-    setPaivamaara(new Date());
-    setKesto('');
-    setMuistiinpanot('');
+    muokkaaTreeni(
+      parseInt(params.id),
+      laji,
+      formatPaivamaara(paivamaara),
+      parseInt(kesto),
+      muistiinpanot
+    );
+    Alert.alert('Valmis', 'Treeni päivitetty!', [
+      { text: 'OK', onPress: () => router.back() }
+    ]);
   }
 
   return (
@@ -37,7 +45,6 @@ export default function AddScreen() {
       <TextInput
         style={styles.input}
         placeholder="esim. Juoksu"
-        placeholderTextColor="#888"
         value={laji}
         onChangeText={setLaji}
       />
@@ -63,8 +70,7 @@ export default function AddScreen() {
       <TextInput
         style={styles.input}
         placeholder="esim. 45"
-        placeholderTextColor="#888"
-        value={kesto}
+        value={String(kesto)}
         onChangeText={setKesto}
         keyboardType="numeric"
       />
@@ -73,14 +79,13 @@ export default function AddScreen() {
       <TextInput
         style={[styles.input, styles.multiline]}
         placeholder="Vapaaehtoinen"
-        placeholderTextColor="#888"
         value={muistiinpanot}
         onChangeText={setMuistiinpanot}
         multiline
       />
 
       <TouchableOpacity style={styles.nappi} onPress={tallenna}>
-        <Text style={styles.nappiTeksti}>Tallenna treeni</Text>
+        <Text style={styles.nappiTeksti}>Tallenna muutokset</Text>
       </TouchableOpacity>
 
     </ScrollView>
@@ -121,7 +126,7 @@ const styles = StyleSheet.create({
     color: '#333',
   },
   nappi: {
-    backgroundColor: '#007AFF',
+    backgroundColor: '#34C759',
     padding: 15,
     borderRadius: 8,
     alignItems: 'center',

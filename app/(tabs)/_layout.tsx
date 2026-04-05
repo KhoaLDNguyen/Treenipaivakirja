@@ -1,33 +1,74 @@
 import { Tabs } from 'expo-router';
-import React from 'react';
-
-import { HapticTab } from '@/components/haptic-tab';
-import { IconSymbol } from '@/components/ui/icon-symbol';
-import { Colors } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
+import { Ionicons } from '@expo/vector-icons';
 
 export default function TabLayout() {
-  const colorScheme = useColorScheme();
-
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
-        headerShown: false,
-        tabBarButton: HapticTab,
-      }}>
+        tabBarActiveTintColor: '#4FC3F7',
+        tabBarInactiveTintColor: '#888',
+        tabBarStyle: {
+          backgroundColor: '#1E1E2E',
+          borderTopColor: '#333',
+          height: 65,
+          paddingBottom: 10,
+          paddingTop: 5,
+        },
+        tabBarLabelStyle: {
+          fontSize: 12,
+          fontWeight: 'bold',
+        },
+        headerStyle: {
+          backgroundColor: '#1E1E2E',
+        },
+        headerTintColor: '#fff',
+        headerTitleStyle: {
+          fontWeight: 'bold',
+          fontSize: 18,
+        },
+      }}
+    >
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Home',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="house.fill" color={color} />,
+          title: 'Treenit',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="barbell-outline" size={size + 2} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="add"
+        options={{
+          title: 'Lisää',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="add-circle-outline" size={size + 2} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="stats"
+        options={{
+          title: 'Tilastot',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="stats-chart-outline" size={size + 2} color={color} />
+          ),
         }}
       />
       <Tabs.Screen
         name="explore"
         options={{
-          title: 'Explore',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="paperplane.fill" color={color} />,
+          title: 'Tutki',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="compass-outline" size={size + 2} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="edit"
+        options={{
+          href: null,
+          title: 'Muokkaa',
         }}
       />
     </Tabs>

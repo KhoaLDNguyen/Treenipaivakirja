@@ -28,3 +28,9 @@ export function haeTreenit() {
 export function poistaTreeni(id) {
   return db.runSync('DELETE FROM treenit WHERE id = ?;', [id]);
 }
+export function muokkaaTreeni(id, laji, paivamaara, kesto, muistiinpanot) {
+  return db.runSync(
+    'UPDATE treenit SET laji = ?, paivamaara = ?, kesto = ?, muistiinpanot = ? WHERE id = ?;',
+    [laji, paivamaara, kesto, muistiinpanot, id]
+  );
+}
