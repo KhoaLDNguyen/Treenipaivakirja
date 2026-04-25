@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useRouter } from 'expo-router';
 
 const liikkeet = {
   'Jalat 🦵': [
@@ -64,6 +65,7 @@ const juoksuohjelmat = [
 ];
 
 export default function ExploreScreen() {
+  const router = useRouter();
   const [nakyma, setNakyma] = useState('kuntosali');
   const [avoinna, setAvoinna] = useState(null);
   const [avattuLiike, setAvattuLiike] = useState(null);
@@ -85,6 +87,13 @@ export default function ExploreScreen() {
 
   function toggleViikko(viikko) {
     setAvattuViikko(avattuViikko === viikko ? null : viikko);
+  }
+
+  function lisaaPaivakirjaan(laji: string, muistiinpanot: string) {
+    router.push({
+      pathname: '/(tabs)/add',
+      params: { laji, muistiinpanot },
+    });
   }
 
   return (
@@ -136,7 +145,15 @@ export default function ExploreScreen() {
                         <Text style={styles.nuoli}>{avattuLiike === liike.nimi ? '▲' : '▼'}</Text>
                       </TouchableOpacity>
                       {avattuLiike === liike.nimi && (
-                        <Text style={styles.liikeKuvaus}>{liike.kuvaus}</Text>
+                        <View style={styles.liikeKuvausContainer}>
+                          <Text style={styles.liikeKuvaus}>{liike.kuvaus}</Text>
+                          <TouchableOpacity
+                            style={styles.lisaaNappi}
+                            onPress={() => lisaaPaivakirjaan('Kuntosali', liike.nimi)}
+                          >
+                            <Text style={styles.lisaaNappiTeksti}>📝 Lisää päiväkirjaan</Text>
+                          </TouchableOpacity>
+                        </View>
                       )}
                     </View>
                   ))}
@@ -174,7 +191,15 @@ export default function ExploreScreen() {
                         <Text style={styles.nuoli}>{avattuViikko === v.viikko ? '▲' : '▼'}</Text>
                       </TouchableOpacity>
                       {avattuViikko === v.viikko && (
-                        <Text style={styles.liikeKuvaus}>{v.ohje}</Text>
+                        <View style={styles.liikeKuvausContainer}>
+                          <Text style={styles.liikeKuvaus}>{v.ohje}</Text>
+                          <TouchableOpacity
+                            style={styles.lisaaNappi}
+                            onPress={() => lisaaPaivakirjaan('Juoksu', `${ohjelma.nimi} - ${v.viikko}: ${v.ohje}`)}
+                          >
+                            <Text style={styles.lisaaNappiTeksti}>📝 Lisää päiväkirjaan</Text>
+                          </TouchableOpacity>
+                        </View>
                       )}
                     </View>
                   ))}
@@ -279,12 +304,26 @@ const styles = StyleSheet.create({
     color: '#333',
     fontWeight: '500',
   },
-  liikeKuvaus: {
-    fontSize: 13,
-    color: '#666',
-    padding: 12,
+  liikeKuvausContainer: {
     backgroundColor: '#f9f9f9',
     borderRadius: 8,
     marginBottom: 5,
+    padding: 12,
+  },
+  liikeKuvaus: {
+    fontSize: 13,
+    color: '#666',
+  },
+  lisaaNappi: {
+    marginTop: 10,
+    backgroundColor: '#007AFF',
+    borderRadius: 8,
+    padding: 10,
+    alignItems: 'center',
+  },
+  lisaaNappiTeksti: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 14,
   },
 });

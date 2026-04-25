@@ -1,7 +1,7 @@
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Alert, FlatList, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { haeTreenit, poistaTreeni } from '../../database/db';
+import { haeTreenit, poistaTreeni, haeLiikkeet } from '../../database/db';
 
 export default function HomeScreen() {
   const [treenit, setTreeenit] = useState([]);
@@ -10,7 +10,11 @@ export default function HomeScreen() {
 
   const lataaTreenit = useCallback(() => {
     const data = haeTreenit();
-    setTreeenit(data);
+    const dataLiikkeilla = data.map(t => ({
+      ...t,
+      liikkeet: haeLiikkeet(t.id),
+    }));
+    setTreeenit(dataLiikkeilla);
   }, []);
 
   useFocusEffect(lataaTreenit);
@@ -40,6 +44,23 @@ export default function HomeScreen() {
           <Text style={styles.laji}>{item.laji}</Text>
           <Text style={styles.tieto}>📅 {item.paivamaara}</Text>
           <Text style={styles.tieto}>⏱ {item.kesto} min</Text>
+
+          {item.liikkeet && item.liikkeet.length > 0 && (
+            <View style={styles.liikkeetOsio}>
+              {item.liikkeet.map((l) => (
+                <Text key={l.id} style={styles.liikeRivi}>
+                  • {l.nimi}
+                  {l.sarjat || l.toistot || l.paino ? ' — ' : ''}
+                  {[
+                    l.sarjat && `${l.sarjat}s`,
+                    l.toistot && `${l.toistot}t`,
+                    l.paino && `${l.paino}kg`,
+                  ].filter(Boolean).join(' · ')}
+                </Text>
+              ))}
+            </View>
+          )}
+
           {item.muistiinpanot ? (
             <Text style={styles.muistiinpanot}>📝 {item.muistiinpanot}</Text>
           ) : null}
@@ -73,7 +94,6 @@ export default function HomeScreen() {
         value={haku}
         onChangeText={setHaku}
       />
-
       {suodatetut.length === 0 ? (
         <View style={styles.tyhja}>
           <Text style={styles.tyhjaTeksti}>
@@ -94,71 +114,30 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f5f5f5',
-  },
+  container: { flex: 1, backgroundColor: '#f5f5f5' },
   hakukentta: {
-    backgroundColor: '#fff',
-    margin: 15,
-    marginTop: 50,
-    marginBottom: 5,
-    padding: 12,
-    borderRadius: 10,
-    fontSize: 16,
-    borderWidth: 1,
-    borderColor: '#ddd',
+    backgroundColor: '#fff', margin: 15, marginTop: 50, marginBottom: 5,
+    padding: 12, borderRadius: 10, fontSize: 16, borderWidth: 1, borderColor: '#ddd',
   },
   kortti: {
-    backgroundColor: '#fff',
-    borderRadius: 10,
-    padding: 15,
-    marginBottom: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
+    backgroundColor: '#fff', borderRadius: 10, padding: 15, marginBottom: 10,
+    flexDirection: 'row', alignItems: 'center',
+    shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 4, elevation: 2,
   },
-  korttiSisalto: {
-    flex: 1,
+  korttiSisalto: { flex: 1 },
+  laji: { fontSize: 18, fontWeight: 'bold', marginBottom: 5 },
+  tieto: { fontSize: 14, color: '#555', marginBottom: 2 },
+  liikkeetOsio: {
+    marginTop: 8, marginBottom: 4,
+    borderLeftWidth: 3, borderLeftColor: '#007AFF',
+    paddingLeft: 8,
   },
-  laji: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 5,
-  },
-  tieto: {
-    fontSize: 14,
-    color: '#555',
-    marginBottom: 2,
-  },
-  muistiinpanot: {
-    fontSize: 14,
-    color: '#888',
-    marginTop: 5,
-  },
-  muokkausNappi: {
-    padding: 8,
-  },
-  muokkausTeksti: {
-    fontSize: 22,
-  },
-  poistaNappi: {
-    padding: 8,
-  },
-  poistaTeksti: {
-    fontSize: 22,
-  },
-  tyhja: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  tyhjaTeksti: {
-    fontSize: 16,
-    color: '#888',
-    marginBottom: 5,
-  },
+  liikeRivi: { fontSize: 13, color: '#444', marginBottom: 2 },
+  muistiinpanot: { fontSize: 14, color: '#888', marginTop: 5 },
+  muokkausNappi: { padding: 8 },
+  muokkausTeksti: { fontSize: 22 },
+  poistaNappi: { padding: 8 },
+  poistaTeksti: { fontSize: 22 },
+  tyhja: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  tyhjaTeksti: { fontSize: 16, color: '#888', marginBottom: 5 },
 });

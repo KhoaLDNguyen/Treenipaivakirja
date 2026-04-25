@@ -1,18 +1,47 @@
-import { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ScrollView, Platform } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { muokkaaTreeni } from '../../database/db';
+import { useEffect, useState } from 'react';
+import { Alert, FlatList, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { haeLiikkeet, lisaaLiike, muokkaaTreeni, poistaLiike } from '../../database/db';
+
+const LAJIT = [
+  'Juoksu', 'Pyöräily', 'Uinti', 'Kuntosali',
+  'Jalkapallo', 'Koripallo', 'Jooga', 'Hiihto',
+  'Tennis', 'Sulkapallo', 'Salibandy', 'Muu'
+];
+
+const VALMIIT_LIIKKEET = [
+  'Kyykky', 'Maastaveto', 'Askelkyykky', 'Leg press', 'Pohjeennosto',
+  'Penkkipunnerrus', 'Leuanveto', 'Soutu', 'Olkapääpunnerrus', 'Dippi',
+  'Lankku', 'Sit-up', 'Pyörä', 'Leg raise',
+  'Hyperextensio', 'Lat pulldown', 'Kaapelisoutu',
+  'Muu / Oma liike',
+];
 
 export default function EditScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
 
-  const [laji, setLaji] = useState(params.laji || '');
+  const [laji, setLaji] = useState(params.laji || LAJIT[0]);
   const [paivamaara, setPaivamaara] = useState(new Date(params.paivamaara || Date.now()));
   const [naytaPicker, setNaytaPicker] = useState(false);
   const [kesto, setKesto] = useState(params.kesto || '');
   const [muistiinpanot, setMuistiinpanot] = useState(params.muistiinpanot || '');
+  const [naytaLajiModal, setNaytaLajiModal] = useState(false);
+
+  const [liikkeet, setLiikkeet] = useState([]);
+  const [naytaLiikeModal, setNaytaLiikeModal] = useState(false);
+  const [uusiLiikeNimi, setUusiLiikeNimi] = useState('');
+  const [uusiLiikeSarjat, setUusiLiikeSarjat] = useState('');
+  const [uusiLiikeToistot, setUusiLiikeToistot] = useState('');
+  const [uusiLiikePaino, setUusiLiikePaino] = useState('');
+
+  useEffect(() => {
+    if (params.id) {
+      const data = haeLiikkeet(parseInt(params.id));
+      setLiikkeet(data);
+    }
+  }, [params.id]);
 
   function formatPaivamaara(date) {
     const y = date.getFullYear();
@@ -21,18 +50,43 @@ export default function EditScreen() {
     return `${y}-${m}-${d}`;
   }
 
-  function tallenna() {
-    if (!laji || !kesto) {
-      Alert.alert('Virhe', 'Täytä kaikki pakolliset kentät!');
+  function lisaaLiikeListaan() {
+    if (!uusiLiikeNimi) {
+      Alert.alert('Virhe', 'Anna liikkeen nimi!');
       return;
     }
-    muokkaaTreeni(
+    const tulos = lisaaLiike(
       parseInt(params.id),
-      laji,
-      formatPaivamaara(paivamaara),
-      parseInt(kesto),
-      muistiinpanot
+      uusiLiikeNimi,
+      uusiLiikeSarjat ? parseInt(uusiLiikeSarjat) : null,
+      uusiLiikeToistot ? parseInt(uusiLiikeToistot) : null,
+      uusiLiikePaino ? parseFloat(uusiLiikePaino) : null
     );
+    setLiikkeet([...liikkeet, {
+      id: tulos.lastInsertRowId,
+      nimi: uusiLiikeNimi,
+      sarjat: uusiLiikeSarjat ? parseInt(uusiLiikeSarjat) : null,
+      toistot: uusiLiikeToistot ? parseInt(uusiLiikeToistot) : null,
+      paino: uusiLiikePaino ? parseFloat(uusiLiikePaino) : null,
+    }]);
+    setUusiLiikeNimi('');
+    setUusiLiikeSarjat('');
+    setUusiLiikeToistot('');
+    setUusiLiikePaino('');
+    setNaytaLiikeModal(false);
+  }
+
+  function poistaLiikeListasta(id) {
+    poistaLiike(id);
+    setLiikkeet(liikkeet.filter(l => l.id !== id));
+  }
+
+  function tallenna() {
+    if (!kesto) {
+      Alert.alert('Virhe', 'Täytä kesto!');
+      return;
+    }
+    muokkaaTreeni(parseInt(params.id), laji, formatPaivamaara(paivamaara), parseInt(kesto), muistiinpanot);
     Alert.alert('Valmis', 'Treeni päivitetty!', [
       { text: 'OK', onPress: () => router.back() }
     ]);
@@ -41,19 +95,39 @@ export default function EditScreen() {
   return (
     <ScrollView contentContainerStyle={styles.container}>
 
+      {/* Laji */}
       <Text style={styles.label}>Laji *</Text>
-      <TextInput
-        style={styles.input}
-        placeholder="esim. Juoksu"
-        value={laji}
-        onChangeText={setLaji}
-      />
+      <TouchableOpacity style={styles.dropdownButton} onPress={() => setNaytaLajiModal(true)}>
+        <Text style={styles.dropdownButtonText}>{laji}</Text>
+        <Text style={styles.dropdownArrow}>▼</Text>
+      </TouchableOpacity>
 
+      {/* Laji Modal */}
+      <Modal visible={naytaLajiModal} transparent animationType="slide" onRequestClose={() => setNaytaLajiModal(false)}>
+        <TouchableOpacity style={styles.modalBackdrop} onPress={() => setNaytaLajiModal(false)}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Valitse laji</Text>
+            <FlatList
+              data={LAJIT}
+              keyExtractor={(item) => item}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={[styles.modalItem, laji === item && styles.modalItemSelected]}
+                  onPress={() => { setLaji(item); setNaytaLajiModal(false); }}
+                >
+                  <Text style={[styles.modalItemText, laji === item && styles.modalItemTextSelected]}>{item}</Text>
+                </TouchableOpacity>
+              )}
+            />
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* Päivämäärä */}
       <Text style={styles.label}>Päivämäärä *</Text>
       <TouchableOpacity style={styles.dateButton} onPress={() => setNaytaPicker(true)}>
         <Text style={styles.dateButtonText}>📅 {formatPaivamaara(paivamaara)}</Text>
       </TouchableOpacity>
-
       {naytaPicker && (
         <DateTimePicker
           value={paivamaara}
@@ -66,19 +140,123 @@ export default function EditScreen() {
         />
       )}
 
+      {/* Kesto */}
       <Text style={styles.label}>Kesto (min) *</Text>
       <TextInput
         style={styles.input}
         placeholder="esim. 45"
+        placeholderTextColor="#888"
         value={String(kesto)}
         onChangeText={setKesto}
         keyboardType="numeric"
       />
 
+      {/* Liikkeet */}
+      <Text style={styles.label}>Liikkeet</Text>
+      {liikkeet.length === 0 && (
+        <Text style={styles.tyhjaText}>Ei liikkeitä lisätty</Text>
+      )}
+      {liikkeet.map((l) => (
+        <View key={l.id} style={styles.liikeKortti}>
+          <View style={styles.liikeKorttiYlarivi}>
+            <Text style={styles.liikeNimi}>{l.nimi}</Text>
+            <TouchableOpacity onPress={() => poistaLiikeListasta(l.id)}>
+              <Text style={styles.poistanappi}>✕</Text>
+            </TouchableOpacity>
+          </View>
+          <Text style={styles.liikeTiedot}>
+            {[
+              l.sarjat && `${l.sarjat} sarjaa`,
+              l.toistot && `${l.toistot} toistoa`,
+              l.paino && `${l.paino} kg`,
+            ].filter(Boolean).join('  ·  ') || 'Ei tarkempia tietoja'}
+          </Text>
+        </View>
+      ))}
+      <TouchableOpacity style={styles.lisaaLiikeNappi} onPress={() => setNaytaLiikeModal(true)}>
+        <Text style={styles.lisaaLiikeNappiTeksti}>+ Lisää liike</Text>
+      </TouchableOpacity>
+
+      {/* Liike Modal */}
+      <Modal visible={naytaLiikeModal} transparent animationType="slide" onRequestClose={() => setNaytaLiikeModal(false)}>
+        <TouchableOpacity style={styles.modalBackdrop} onPress={() => setNaytaLiikeModal(false)}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Lisää liike</Text>
+
+            <Text style={styles.liikeLabel}>Valitse liike</Text>
+            <FlatList
+              data={VALMIIT_LIIKKEET}
+              keyExtractor={(item) => item}
+              style={{ maxHeight: 200, marginBottom: 10 }}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={[styles.modalItem, uusiLiikeNimi === item && styles.modalItemSelected]}
+                  onPress={() => setUusiLiikeNimi(item === 'Muu / Oma liike' ? '' : item)}
+                >
+                  <Text style={[styles.modalItemText, uusiLiikeNimi === item && styles.modalItemTextSelected]}>
+                    {item}
+                  </Text>
+                </TouchableOpacity>
+              )}
+            />
+
+            <Text style={styles.liikeLabel}>Tai kirjoita oma nimi</Text>
+            <TextInput
+              style={styles.liikeInput}
+              placeholder="esim. Penkkipunnerrus"
+              placeholderTextColor="#888"
+              value={uusiLiikeNimi}
+              onChangeText={setUusiLiikeNimi}
+            />
+
+            <View style={styles.liikeRivi}>
+              <View style={styles.liikeKenttaPuolikas}>
+                <Text style={styles.liikeLabel}>Sarjat</Text>
+                <TextInput
+                  style={styles.liikeInput}
+                  placeholder="esim. 3"
+                  placeholderTextColor="#888"
+                  value={uusiLiikeSarjat}
+                  onChangeText={setUusiLiikeSarjat}
+                  keyboardType="numeric"
+                />
+              </View>
+              <View style={styles.liikeKenttaPuolikas}>
+                <Text style={styles.liikeLabel}>Toistot</Text>
+                <TextInput
+                  style={styles.liikeInput}
+                  placeholder="esim. 10"
+                  placeholderTextColor="#888"
+                  value={uusiLiikeToistot}
+                  onChangeText={setUusiLiikeToistot}
+                  keyboardType="numeric"
+                />
+              </View>
+            </View>
+
+            <Text style={styles.liikeLabel}>Paino (kg)</Text>
+            <TextInput
+              style={styles.liikeInput}
+              placeholder="esim. 60"
+              placeholderTextColor="#888"
+              value={uusiLiikePaino}
+              onChangeText={setUusiLiikePaino}
+              keyboardType="decimal-pad"
+            />
+
+            <TouchableOpacity style={styles.nappi} onPress={lisaaLiikeListaan}>
+              <Text style={styles.nappiTeksti}>Lisää</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* Muistiinpanot */}
       <Text style={styles.label}>Muistiinpanot</Text>
       <TextInput
         style={[styles.input, styles.multiline]}
         placeholder="Vapaaehtoinen"
+        placeholderTextColor="#888"
         value={muistiinpanot}
         onChangeText={setMuistiinpanot}
         multiline
@@ -93,48 +271,52 @@ export default function EditScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    padding: 20,
+  container: { padding: 20 },
+  label: { fontSize: 16, fontWeight: 'bold', marginBottom: 5, marginTop: 15 },
+  dropdownButton: {
+    borderWidth: 1, borderColor: '#ccc', borderRadius: 8, padding: 12,
+    backgroundColor: '#fff', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
   },
-  label: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginBottom: 5,
-    marginTop: 15,
+  dropdownButtonText: { fontSize: 16, color: '#333' },
+  dropdownArrow: { fontSize: 12, color: '#888' },
+  modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+  modalContent: {
+    backgroundColor: '#fff', borderTopLeftRadius: 16, borderTopRightRadius: 16,
+    padding: 20, maxHeight: '80%',
   },
+  modalTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 15, textAlign: 'center', color: '#333' },
+  modalItem: { padding: 15, borderBottomWidth: 1, borderBottomColor: '#eee' },
+  modalItemSelected: { backgroundColor: '#E8F0FE' },
+  modalItemText: { fontSize: 16, color: '#333' },
+  modalItemTextSelected: { color: '#007AFF', fontWeight: 'bold' },
   input: {
-    borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 8,
-    padding: 10,
-    fontSize: 16,
-    backgroundColor: '#fff',
+    borderWidth: 1, borderColor: '#ccc', borderRadius: 8,
+    padding: 10, fontSize: 16, backgroundColor: '#fff',
   },
-  multiline: {
-    height: 100,
-    textAlignVertical: 'top',
+  multiline: { height: 100, textAlignVertical: 'top' },
+  dateButton: { borderWidth: 1, borderColor: '#ccc', borderRadius: 8, padding: 12, backgroundColor: '#fff' },
+  dateButtonText: { fontSize: 16, color: '#333' },
+  tyhjaText: { color: '#aaa', fontStyle: 'italic', marginBottom: 8 },
+  liikeKortti: {
+    backgroundColor: '#f0f4ff', borderRadius: 8, padding: 12,
+    marginBottom: 8, borderLeftWidth: 4, borderLeftColor: '#34C759',
   },
-  dateButton: {
-    borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 8,
-    padding: 12,
-    backgroundColor: '#fff',
+  liikeKorttiYlarivi: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  liikeNimi: { fontSize: 15, fontWeight: 'bold', color: '#1E1E2E' },
+  poistanappi: { fontSize: 16, color: '#FF3B30', paddingHorizontal: 6 },
+  liikeTiedot: { fontSize: 13, color: '#555', marginTop: 4 },
+  lisaaLiikeNappi: {
+    borderWidth: 2, borderColor: '#34C759', borderStyle: 'dashed',
+    borderRadius: 8, padding: 12, alignItems: 'center', marginTop: 8,
   },
-  dateButtonText: {
-    fontSize: 16,
-    color: '#333',
+  lisaaLiikeNappiTeksti: { color: '#34C759', fontWeight: 'bold', fontSize: 15 },
+  liikeRivi: { flexDirection: 'row', gap: 10 },
+  liikeKenttaPuolikas: { flex: 1 },
+  liikeLabel: { fontSize: 14, fontWeight: '600', marginBottom: 4, marginTop: 10, color: '#333' },
+  liikeInput: {
+    borderWidth: 1, borderColor: '#ccc', borderRadius: 8,
+    padding: 10, fontSize: 15, backgroundColor: '#f9f9f9',
   },
-  nappi: {
-    backgroundColor: '#34C759',
-    padding: 15,
-    borderRadius: 8,
-    alignItems: 'center',
-    marginTop: 30,
-  },
-  nappiTeksti: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
+  nappi: { backgroundColor: '#34C759', padding: 15, borderRadius: 8, alignItems: 'center', marginTop: 20 },
+  nappiTeksti: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
 });
